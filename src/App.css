@@ -1,0 +1,47 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body,
+html,
+#root {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: black;
+}
+
+.App {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.circle {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background-color: gray;
+  transition: transform 0.01s ease; /* ลดเวลาจาก 0.2s เป็น 0.01s */
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    background-color: rgb(255, 255, 255); /* เริ่มต้นด้วยสีเทา */
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0.7;
+    background-color: white; /* จบด้วยสีขาว */
+  }
+}
+
+.circle.animate {
+  animation: pulse 0.5s infinite; /* ค่าความเร็วของ animation */
+}
