@@ -1,0 +1,40 @@
+/* src/NewsFeed.css */
+.newsfeed {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.newsfeed img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+
+
+/* Slider dots styling */
+.slick-dots li {
+  width: 20px;  /* ปรับขนาดความกว้างของ dots */
+  height: 20px; /* ปรับขนาดความสูงของ dots */
+}
+
+.slick-dots li button {
+  width: 20px;  /* ขนาดปุ่ม dots */
+  height: 20px; /* ขนาดปุ่ม dots */
+  border: none; /* ไม่มีกรอบ */
+  outline: none; /* ไม่มีขอบ */
+}
+
+/* ขนาดของ dots */
+.slick-dots li button:before {
+  font-size: 14px; /* ปรับขนาดของ dot */
+  color: hwb(0 100% 0%); /* สีของ dot ปกติ */
+  line-height: 20px; /* จัดตำแหน่งให้ dots อยู่กลาง */
+}
+
+/* สีและขนาดเมื่อ dots ถูกเลือก */
+.slick-dots .slick-active button:before {
+  color: #ffffff; /* สีของ dot ที่ถูกเลือก */
+  font-size: 14px; /* ขนาดของ dot ที่ถูกเลือก */
+}

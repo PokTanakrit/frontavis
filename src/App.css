@@ -1,47 +1,41 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
 
-body,
-html,
-#root {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: black;
-}
-
-.App {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-.circle {
-  width: 300px;
-  height: 300px;
+/* App.css */
+.floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  background-color: gray;
-  transition: transform 0.01s ease; /* ลดเวลาจาก 0.2s เป็น 0.01s */
+  background-color: hsl(0, 0%, 100%);
+  color: #ff0000;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-    background-color: rgb(255, 255, 255); /* เริ่มต้นด้วยสีเทา */
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0.7;
-    background-color: white; /* จบด้วยสีขาว */
-  }
+.floating-button:hover {
+  background-color: #73ff00;
 }
 
-.circle.animate {
-  animation: pulse 0.5s infinite; /* ค่าความเร็วของ animation */
+
+.small-talking-screen {
+  position: fixed; /* ให้อยู่ในตำแหน่งคงที่ */
+  bottom: 20px; /* ระยะห่างจากด้านล่าง */
+  right: 20px; /* ระยะห่างจากด้านซ้าย */
+  width: 500px; /* กำหนดความกว้าง */
+  height: 800px; /* กำหนดความสูง */
+  background-color: hsl(0, 0%, 0%); /* พื้นหลังสีขาว */
+  border: 1px solid gray; /* ขอบสีเทา */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* เงา */
+  z-index: 1000; /* ทำให้แน่ใจว่าหน้าต่างนี้อยู่บนสุด */
+  overflow: hidden; /* ซ่อนเนื้อหาที่เกินขอบ */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
