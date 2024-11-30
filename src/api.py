@@ -1,34 +1,37 @@
 from flask import Flask, request, jsonify
 import pyttsx3
 import threading
+from flask_cors import CORS
 
 app = Flask(__name__)
-
-# Initialize the TTS engine
-engine = pyttsx3.init()
-TH_voice_id = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_THAI"
-engine.setProperty('volume', 1)  # Volume 0-1
-engine.setProperty('rate', 148)  # Speed of speech
-engine.setProperty('voice', TH_voice_id)
+CORS(app)
 
 def play_text(text):
+    engine = pyttsx3.init()
+    TH_voice_id = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_THAI"
+    engine.setProperty('voice', TH_voice_id)
+    engine.setProperty('rate', 130)
+    engine.setProperty('volume', 1)
     engine.say(text)
-    engine.runAndWait()  # Play the voice
+    engine.runAndWait()
 
 @app.route('/playvoice', methods=['POST'])
 def play_voice():
-    data = request.get_json()
-    text = data.get('text')
+    try:
+        print("Headers:", request.headers)
+        data = request.get_json(force=True)  # force=True for non-Content-Type JSON issues
+        print("Raw data received:", request.data)
+        print("Parsed data:", data)
 
-    if text:
-        print(f"Received text: {text}")
-
-        # Use threading to play the text without blocking
-        threading.Thread(target=play_text, args=(text,)).start()
-
-        return jsonify({"message": "Text received and is being spoken."}), 200  # Return a response immediately
-    else:
-        return jsonify({"error": "No text provided."}), 400  # Error response
+        text = data.get('text')
+        if text:
+            threading.Thread(target=play_text, args=(text,)).start()
+            return jsonify({"message": "Text received and is being spoken."}), 200
+        else:
+            return jsonify({"error": "No text provided."}), 400
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": "Invalid JSON or request format."}), 400
 
 if __name__ == '__main__':
     app.run(port=4000)

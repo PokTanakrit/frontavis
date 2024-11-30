@@ -130,7 +130,7 @@ function TalkingScreen() {
     try {
         const body = JSON.stringify({ text: text });
 
-        const response = await fetch("https://84ed-202-14-164-206.ngrok-free.app/searchindex", {
+        const response = await fetch("http://localhost:3000/searchindex3", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -142,9 +142,11 @@ function TalkingScreen() {
             const result = await response.json();
             console.log("ข้อความถูกส่งไปยังเซิร์ฟเวอร์ท้องถิ่นแล้ว:", result);
 
-            // เอา text ที่ได้จาก result มาใช้ในการเล่นเสียง
-            const textToSpeak = result.text; // สมมติว่าข้อความที่ตอบกลับมี key ว่า text
-            await playVoice(textToSpeak); // เรียกฟังก์ชันเล่นเสียงที่เราจะสร้างขึ้น
+            // Using the generated response for TTS
+            const textToSpeak = result.responses.generated_response; // Correct path to generated_response
+            console.log("Text to speak:", textToSpeak);
+            await playVoice(textToSpeak); // Calls playVoice function with the desired text
+
 
             setStatus("ข้อความถูกส่งไปยังเซิร์ฟเวอร์ท้องถิ่นแล้ว");
         } else {
@@ -162,7 +164,7 @@ const playVoice = async (text) => {
     try {
         const body = JSON.stringify({ text: text });
 
-        const response = await fetch("https://84ed-202-14-164-206.ngrok-free.app/playvoice", {
+        const response = await fetch("http://localhost:4000/playvoice", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -182,13 +184,14 @@ const playVoice = async (text) => {
 }
 
   const backgroundColor = isRecording ? (hasSound ? "white" : "gray") : "gray";
+  const circleScale = isRecording ? scale : 1; // ขนาดของวงกลมขยับเมื่อบันทึกเสียง
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <div
         className="circle"
         style={{
-          transform: `scale(${scale})`,
+          transform: `scale(${circleScale})`,
           backgroundColor: backgroundColor,
           width: '200px',
           height: '200px',

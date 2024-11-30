@@ -1,46 +1,64 @@
-import React, { useState } from 'react';
-import NewsFeed from './components/NewsFeed';
-import TalkingScreen from './components/TalkingScreen';
-import StopTalkingScreen from './components/StopTalkingScreen';
-import EndTalkingScreen from './components/EndTalkingScreen';
-import ChatHistory from './components/ChatHistory';
-import './App.css';  // Import CSS
+import { useEffect, useState } from "react";
+import { usePorcupine } from "@picovoice/porcupine-react";
+import HelloAvisKeywordModel from "./Hello_avis";  // นำเข้า Hello_avis จาก src/
+import modelParams from "./porcupine_params";     // นำเข้า porcupine_params จาก src/
+import TalkingScreen from "./components/TalkingScreen";  // นำเข้า TalkingScreen จาก components/
+import NewsFeed from "./components/NewsFeed";  // นำเข้า NewsFeed
 
-function App() {
-  const [screen, setScreen] = useState('news'); // สถานะเริ่มต้นเป็น 'news'
-  const [showTalkingScreen, setShowTalkingScreen] = useState(false); // สถานะสำหรับเปิด TalkingScreen ขนาดเล็ก
+export default function VoiceWidget() {
+    const [keywordDetections, setKeywordDetections] = useState([]);
+    const [showTalkingScreen, setShowTalkingScreen] = useState(false);  // สถานะเพื่อแสดงหน้าจอ TalkingScreen
 
-  const handleMicClick = () => {
-    setShowTalkingScreen(true); // เปิด TalkingScreen ขนาดเล็ก
-  };
+    const {
+        keywordDetection,
+        isLoaded,
+        isListening,
+        error,
+        init,
+        start,
+        stop,
+        release
+    } = usePorcupine();
 
-  return (
-    <div className="App">
-      {screen === 'news' && <NewsFeed onMicClick={handleMicClick} />}
-      {screen === 'talking' && <TalkingScreen onStopClick={() => setScreen('stopTalking')} />}
-      {screen === 'stopTalking' && <StopTalkingScreen onEndClick={() => setScreen('endTalking')} />}
-      {screen === 'endTalking' && (
-        <EndTalkingScreen
-          onHistoryClick={() => setScreen('history')}
-          onCloseClick={() => setScreen('news')}
-        />
-      )}
-      {screen === 'history' && <ChatHistory onBackClick={() => setScreen('news')} />}
+    // เริ่มต้นการทำงานของ Porcupine โดยอัตโนมัติเมื่อคอมโพเนนต์โหลด
+    const initEngine = async () => {
+        await init(
+            "pGO4BAYiyE5xOsIbk5ybzw38zI1oTal4m5vqHkR+XGfEiNwpL8IGLw==", // ใส่ API key ของคุณตรงนี้
+            {
+                "base64": HelloAvisKeywordModel,  // ใช้ HelloAvisKeywordModel แทน hello_avis
+                "label": "Hello Avis"             // เปลี่ยน label เป็น Hello Avis ตาม wakeword ของคุณ
+            },
+            { base64: modelParams }             // ใช้ modelParams จากไฟล์ที่แปลงแล้ว
+        );
+        start();  // เริ่มต้นการฟังเสียง
+    };
 
-      {/* ปุ่มกลมๆ เล็ก สีฟ้า */}
-      <button className="floating-button" onClick={handleMicClick}>
-        แชทด้วยเสียง
-      </button>
+    // เริ่มต้นการฟังเสียงทันทีเมื่อคอมโพเนนต์ถูกโหลด
+    useEffect(() => {
+        initEngine();  // เรียกฟังก์ชันเพื่อเริ่มต้นการฟังเสียง
+    }, []);  // ใช้ empty dependency array เพื่อให้ทำงานเพียงครั้งเดียวเมื่อคอมโพเนนต์ถูกโหลด
 
-      {/* แสดง TalkingScreen ขนาดเล็ก */}
-      {showTalkingScreen && (
-        <div className="small-talking-screen">
-          <TalkingScreen />
-          <button onClick={() => setShowTalkingScreen(false)}>ปิด</button> {/* ปุ่มปิด TalkingScreen */}
+    // ตรวจจับคำสำคัญและแสดงหน้าจอ TalkingScreen เมื่อพบ wakeword
+    useEffect(() => {
+        if (keywordDetection !== null) {
+            setKeywordDetections((oldVal) => [...oldVal, keywordDetection.label]);  // เมื่อตรวจจับคำสำคัญ เพิ่มลงใน list
+            if (keywordDetection.label === "Hello Avis") {
+                setShowTalkingScreen(true);  // ถ้าพบคำว่า "Hello Avis" ให้แสดงหน้าจอ TalkingScreen
+            }
+        }
+    }, [keywordDetection]);
+
+    return (
+        <div className="voice-widget">
+            {/* ถ้าพบคำสำคัญ "Hello Avis" จะแสดงหน้าจอ TalkingScreen */}
+            {showTalkingScreen ? (
+                <div className="small-talking-screen">
+                    <TalkingScreen />
+                    <button onClick={() => setShowTalkingScreen(false)}>ปิด</button> {/* ปุ่มปิด TalkingScreen */}
+                </div>
+            ) : (
+                <NewsFeed />
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
-
-export default App;
