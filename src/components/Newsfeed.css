@@ -1,0 +1,72 @@
+.slider-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* กำหนดขนาดของรูป */
+.slider-image {
+  width: 100vw;
+  height: calc(100vh - 250px);
+}
+
+/* สไตล์ของ dot ที่มีอยู่เดิม */
+.slick-dots {
+  position: absolute;
+  bottom: 20px;  /* เลื่อนขึ้นหรือลง */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex !important;
+  justify-content: center;
+  list-style: none;
+  padding: 0;
+}
+
+.slick-dots li {
+  margin: 5px;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.slick-dots li button {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  border: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.slick-dots li.slick-active button {
+  background-color: #ffffff;
+  width: 20px;
+  height: 20px;
+}
+
+/* สไตล์ลูกศรทั้งสอง */
+.custom-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  padding: 10px;
+  cursor: pointer;
+  z-index: 1;
+  transition: background 0.3s ease;
+}
+
+.custom-arrow:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* ลูกศรซ้าย */
+.custom-prev {
+  left: 20px;
+}
+
+/* ลูกศรขวา */
+.custom-next {
+  right: 20px;
+}

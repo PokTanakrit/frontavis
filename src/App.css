@@ -1,0 +1,71 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  margin: 0 auto; /* จัดให้อยู่ตรงกลางหน้าจอ */
+  background-color: #000000;
+  position: relative; /* สำหรับใช้กับ absolute positioning ภายใน */
+}
+
+/* จัดตำแหน่งปุ่มไมโครโฟนให้อยู่ด้านล่างสุดตรงกลาง */
+.mic-button-container {
+  position: absolute;
+  bottom: 20px; /* ระยะห่างจากด้านล่าง */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* ปรับขนาดปุ่มไมโครโฟนให้ใหญ่ขึ้น */
+.mic-button {
+  width: 150px;    /* เพิ่มขนาดจาก 60px เป็น 80px */
+  height: 150px;   /* เพิ่มขนาดจาก 60px เป็น 80px */
+  background-color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+/* ปรับขนาดรูปไมโครโฟนภายในปุ่ม */
+.mic-icon {
+  width: 100px;  /* ปรับขนาดรูปให้เหมาะสมกับปุ่ม */
+  height: auto;
+}
+
+.floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: hsl(0, 0%, 100%);
+  color: #ff0000;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.small-talking-screen {
+  position: fixed; /* ให้อยู่ในตำแหน่งคงที่ */
+  bottom: 20px; /* ระยะห่างจากด้านล่าง */
+  right: 20px; /* ระยะห่างจากด้านซ้าย */
+  width: 500px; /* กำหนดความกว้าง */
+  height: 800px; /* กำหนดความสูง */
+  background-color: hsl(0, 0%, 0%); /* พื้นหลังสีขาว */
+  border: 1px solid gray; /* ขอบสีเทา */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* เงา */
+  z-index: 1000; /* ทำให้แน่ใจว่าหน้าต่างนี้อยู่บนสุด */
+  overflow: hidden; /* ซ่อนเนื้อหาที่เกินขอบ */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
