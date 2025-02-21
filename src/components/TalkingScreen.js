@@ -129,7 +129,7 @@ function TalkingScreen() {
 
   const sendTextToLocalServer = async (text) => {
     try {
-      const response = await fetch("http://127.0.0.1:4000/searchkeyword", { 
+      const response = await fetch("https://48bd-202-44-40-186.ngrok-free.app/call_llm", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -138,7 +138,7 @@ function TalkingScreen() {
       if (response.ok) {
         const result = await response.json();
         console.log("Text sent to server:", result);
-        const textToSpeak = result.generated_response;
+        const textToSpeak = result;
         await playVoice(textToSpeak);
         setStatus("ข้อความถูกส่งไปยังเซิร์ฟเวอร์ท้องถิ่นแล้ว");
       } else {

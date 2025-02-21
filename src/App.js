@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePorcupine } from "@picovoice/porcupine-react";
 import HelloAvisKeywordModel from "./Hello_avis";
 import ThankYouAvisKeywordModel from "./Thank-you-Avis";
@@ -11,35 +11,49 @@ import { CgCloseO } from "react-icons/cg";
 export default function VoiceWidget() {
     const [showTalkingScreen, setShowTalkingScreen] = useState(false);
     const [isListeningActive, setIsListeningActive] = useState(false);
-    const [showStopIcon, setShowStopIcon] = useState(false); // ✅ แก้ปัญหา setShowStopIcon is not defined
-    const silenceTimeoutRef = useRef(null); // ✅ ใช้ useRef ได้แล้ว
+    const [showStopIcon, setShowStopIcon] = useState(false);
+    const [volumeLevel, setVolumeLevel] = useState(0);
+    const silenceTimeoutRef = useRef(null);
+    const audioContextRef = useRef(null);
+    const analyserRef = useRef(null);
+    const dataArrayRef = useRef(null);
 
-    const {
-        keywordDetection,
-        isLoaded,
-        init,
-        start,
-        stop
-    } = usePorcupine();
+    const { keywordDetection, isLoaded, init, start, stop } = usePorcupine();
 
-    // ✅ ฟังก์ชันเริ่มบันทึกเสียง (แก้ไข startRecording is not defined)
-    const startRecording = () => {
-        console.log("🎙 เริ่มบันทึกเสียง...");
-        setShowStopIcon(true);
-        // ใส่โค้ดเริ่มบันทึกเสียงที่ต้องการ
-    };
+    const startVolumeDetection = async () => {
+        if (audioContextRef.current) return;
 
-    const startListening = () => {
-        console.log("🔊 เริ่มฟังเสียง...");
-        start();
-    };
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioContext = new AudioContext();
+            const analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(stream);
 
-    const stopListening = () => {
-        console.log("🔇 หยุดฟังเสียง...");
-        stop();
-        setShowTalkingScreen(false);
-        setIsListeningActive(false);
-        setShowStopIcon(false);
+            source.connect(analyser);
+
+            audioContextRef.current = audioContext;
+            analyserRef.current = analyser;
+            dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+
+            const checkVolume = () => {
+                analyser.getByteFrequencyData(dataArrayRef.current); // 🔊 อ่านข้อมูลเสียง
+                const avgVolume = dataArrayRef.current.reduce((a, b) => a + b, 0) / dataArrayRef.current.length; // 🎚️ คำนวณค่าเฉลี่ย
+                setVolumeLevel(avgVolume); // 📢 อัปเดต state สำหรับ UI
+            
+                // ✅ เงื่อนไขใหม่: ถ้าค่าดังไม่ถึง 95 -> เคลียร์ค่าเสียง
+                if (avgVolume < 95) {
+                    dataArrayRef.current.fill(0); // 🔥 เคลียร์ทุกค่าในอาร์เรย์
+                    console.log("🧹 avgVolume ต่ำกว่า 95 -> เคลียร์ค่าเสียงแล้ว");
+                }
+            
+                requestAnimationFrame(checkVolume); // 🔄 ตรวจจับทุกเฟรม
+            };
+            
+
+            checkVolume();
+        } catch (error) {
+            console.error("❌ ไม่สามารถเข้าถึงไมค์:", error);
+        }
     };
 
     const resetSilenceTimer = () => {
@@ -60,9 +74,26 @@ export default function VoiceWidget() {
 
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             setShowStopIcon(false);
-            startRecording(); // ✅ แก้ปัญหา startRecording is not defined
         } catch (error) {
-            console.error("Error playing voice:", error);
+            console.error("❌ Error playing voice:", error);
+        }
+    };
+
+    const startListening = () => {
+        console.log("🔊 เริ่มฟังเสียง...");
+        start();
+        startVolumeDetection();
+    };
+
+    const stopListening = () => {
+        console.log("🔇 หยุดฟังเสียง...");
+        stop();
+        setShowTalkingScreen(false);
+        setIsListeningActive(false);
+        setShowStopIcon(false);
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
         }
     };
 
@@ -73,7 +104,7 @@ export default function VoiceWidget() {
                     "pGO4BAYiyE5xOsIbk5ybzw38zI1oTal4m5vqHkR+XGfEiNwpL8IGLw==",
                     [
                         { base64: HelloAvisKeywordModel, label: "Hello Avis" },
-                        { base64: ThankYouAvisKeywordModel, label: "Thank you Avis" }
+                        { base64: ThankYouAvisKeywordModel, label: "Thank you Avis" },
                     ],
                     { base64: modelParams }
                 );
@@ -81,10 +112,10 @@ export default function VoiceWidget() {
             }
         };
         initEngine();
-    }, [init, startListening, isLoaded]);
+    }, [init, isLoaded]);
 
     useEffect(() => {
-        if (keywordDetection !== null) {
+        if (keywordDetection) {
             console.log("🔍 ตรวจจับได้:", keywordDetection.label);
 
             if (keywordDetection.label === "Hello Avis" && !showTalkingScreen) {
@@ -93,8 +124,7 @@ export default function VoiceWidget() {
                 setIsListeningActive(true);
                 playVoice("สวัสดีครับ มีอะไรให้ช่วยครับ");
                 resetSilenceTimer();
-            } 
-            else if (keywordDetection.label === "Thank you Avis" && showTalkingScreen) {
+            } else if (keywordDetection.label === "Thank you Avis" && showTalkingScreen) {
                 console.log("❌ พูด Thank you Avis -> ปิด TalkingScreen");
                 stopListening();
             }
@@ -116,7 +146,9 @@ export default function VoiceWidget() {
             {showTalkingScreen && (
                 <div className="small-talking-screen">
                     <TalkingScreen resetSilenceTimer={resetSilenceTimer} />
-                    <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "20px" }}>
+                    <div
+                        style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "20px" }}
+                    >
                         <CgCloseO onClick={stopListening} size={120} style={{ cursor: "pointer", color: "red" }} />
                     </div>
                 </div>
