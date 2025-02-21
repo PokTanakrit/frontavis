@@ -21,8 +21,12 @@
     height: 300px;
     border-radius: 50%;
     background-color: gray;
-    transition: transform 0.01s ease; 
-  }
+    transition: transform 0.01s ease;
+    position: relative;  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
   
   @keyframes pulse {
     0% {

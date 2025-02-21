@@ -1,82 +1,124 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { usePorcupine } from "@picovoice/porcupine-react";
-import HelloAvisKeywordModel from "./Hello_avis";  // นำเข้า Hello_avis จาก src/
-import ThankYouAvisKeywordModel from "./Thank-you-Avis";  // นำเข้า Thank-you-Avis จาก src/
-import modelParams from "./porcupine_params";     // นำเข้า porcupine_params จาก src/
-import TalkingScreen from "./components/TalkingScreen";  // นำเข้า TalkingScreen จาก components/
-import SliderPage from "./components/Newsfeed";  // นำเข้า NewsFeed
-import "./App.css";  // นำเข้าไฟล์ CSS สำหรับการจัดรูปแบบ
+import HelloAvisKeywordModel from "./Hello_avis";
+import ThankYouAvisKeywordModel from "./Thank-you-Avis";
+import modelParams from "./porcupine_params";
+import TalkingScreen from "./components/TalkingScreen";
+import SliderPage from "./components/Newsfeed";
+import "./App.css";
+import { CgCloseO } from "react-icons/cg";
 
 export default function VoiceWidget() {
-    const [keywordDetections, setKeywordDetections] = useState([]);
-    const [showTalkingScreen, setShowTalkingScreen] = useState(false);  // สถานะเพื่อแสดงหน้าจอ TalkingScreen
+    const [showTalkingScreen, setShowTalkingScreen] = useState(false);
+    const [isListeningActive, setIsListeningActive] = useState(false);
+    const [showStopIcon, setShowStopIcon] = useState(false); // ✅ แก้ปัญหา setShowStopIcon is not defined
+    const silenceTimeoutRef = useRef(null); // ✅ ใช้ useRef ได้แล้ว
 
     const {
         keywordDetection,
         isLoaded,
-        isListening,
-        error,
         init,
         start,
-        stop,
-        release
+        stop
     } = usePorcupine();
 
-    // เริ่มต้นการทำงานของ Porcupine โดยอัตโนมัติเมื่อคอมโพเนนต์โหลด
-    const initEngine = async () => {
-        await init(
-            "pGO4BAYiyE5xOsIbk5ybzw38zI1oTal4m5vqHkR+XGfEiNwpL8IGLw==", // ใส่ API key ของคุณตรงนี้
-            [
-                {
-                    "base64": HelloAvisKeywordModel,  // ใช้ HelloAvisKeywordModel สำหรับ wakeword "Hello Avis"
-                    "label": "Hello Avis"
-                },
-                {
-                    "base64": ThankYouAvisKeywordModel,  // ใช้ ThankYouAvisKeywordModel สำหรับ wakeword "Thank you Avis"
-                    "label": "Thank you Avis"
-                }
-            ],
-            { base64: modelParams }  // ใช้ modelParams จากไฟล์ที่แปลงแล้ว
-        );
-        start();  // เริ่มต้นการฟังเสียง
+    // ✅ ฟังก์ชันเริ่มบันทึกเสียง (แก้ไข startRecording is not defined)
+    const startRecording = () => {
+        console.log("🎙 เริ่มบันทึกเสียง...");
+        setShowStopIcon(true);
+        // ใส่โค้ดเริ่มบันทึกเสียงที่ต้องการ
     };
 
-    // เริ่มต้นการฟังเสียงทันทีเมื่อคอมโพเนนต์ถูกโหลด
-    useEffect(() => {
-        initEngine();  // เรียกฟังก์ชันเพื่อเริ่มต้นการฟังเสียง
-    }, []);  // ใช้ empty dependency array เพื่อให้ทำงานเพียงครั้งเดียวเมื่อคอมโพเนนต์ถูกโหลด
+    const startListening = () => {
+        console.log("🔊 เริ่มฟังเสียง...");
+        start();
+    };
 
-    // ตรวจจับคำสำคัญและจัดการสถานะของ TalkingScreen
+    const stopListening = () => {
+        console.log("🔇 หยุดฟังเสียง...");
+        stop();
+        setShowTalkingScreen(false);
+        setIsListeningActive(false);
+        setShowStopIcon(false);
+    };
+
+    const resetSilenceTimer = () => {
+        if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = setTimeout(() => {
+            console.log("⏳ ไม่มีเสียง 20 วินาที -> ปิด TalkingScreen");
+            stopListening();
+        }, 20000);
+    };
+
+    const playVoice = async (text) => {
+        try {
+            const response = await fetch("http://localhost:4000/playvoice", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text }),
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            setShowStopIcon(false);
+            startRecording(); // ✅ แก้ปัญหา startRecording is not defined
+        } catch (error) {
+            console.error("Error playing voice:", error);
+        }
+    };
+
+    useEffect(() => {
+        const initEngine = async () => {
+            if (!isLoaded) {
+                await init(
+                    "pGO4BAYiyE5xOsIbk5ybzw38zI1oTal4m5vqHkR+XGfEiNwpL8IGLw==",
+                    [
+                        { base64: HelloAvisKeywordModel, label: "Hello Avis" },
+                        { base64: ThankYouAvisKeywordModel, label: "Thank you Avis" }
+                    ],
+                    { base64: modelParams }
+                );
+                startListening();
+            }
+        };
+        initEngine();
+    }, [init, startListening, isLoaded]);
+
     useEffect(() => {
         if (keywordDetection !== null) {
-            setKeywordDetections((oldVal) => [...oldVal, keywordDetection.label]);  // เมื่อตรวจจับคำสำคัญ เพิ่มลงใน list
-            if (keywordDetection.label === "Hello Avis") {
-                setShowTalkingScreen(true);  // ถ้าพบคำว่า "Hello Avis" ให้แสดงหน้าจอ TalkingScreen
-            } else if (keywordDetection.label === "Thank you Avis") {
-                setShowTalkingScreen(false);  // ถ้าพบคำว่า "Thank you Avis" ให้ปิดหน้าจอ TalkingScreen
+            console.log("🔍 ตรวจจับได้:", keywordDetection.label);
+
+            if (keywordDetection.label === "Hello Avis" && !showTalkingScreen) {
+                console.log("✅ พูด Hello Avis -> เปิด TalkingScreen");
+                setShowTalkingScreen(true);
+                setIsListeningActive(true);
+                playVoice("สวัสดีครับ มีอะไรให้ช่วยครับ");
+                resetSilenceTimer();
+            } 
+            else if (keywordDetection.label === "Thank you Avis" && showTalkingScreen) {
+                console.log("❌ พูด Thank you Avis -> ปิด TalkingScreen");
+                stopListening();
             }
         }
     }, [keywordDetection]);
 
     return (
         <div className="container">
-        {/* ส่วนแสดงภาพ */}
-        <div className="image-section">
-          <SliderPage /> {/* ใช้ SliderPage ที่สร้าง */}
-        </div>
-  
-        {/* ปุ่มไมโครโฟน */}
-        <div className="mic-button-container">
-        <div className="mic-button" onClick={() => setShowTalkingScreen(true)}>
-            <img src="/images/microphone.png" alt="Microphone" className="mic-icon" />
-        </div>
-        </div>
+            <div className="image-section">
+                <SliderPage />
+            </div>
 
-            {/* ถ้าพบคำสำคัญ "Hello Avis" จะแสดงหน้าจอ TalkingScreen */}
+            <div className="mic-button-container">
+                <div className="mic-button" onClick={() => setShowTalkingScreen(true)}>
+                    <img src="/images/microphone.png" alt="Microphone" className="mic-icon" />
+                </div>
+            </div>
+
             {showTalkingScreen && (
                 <div className="small-talking-screen">
-                    <TalkingScreen />
-                    <button onClick={() => setShowTalkingScreen(false)}>ปิด</button> {/* ปุ่มปิด TalkingScreen */}
+                    <TalkingScreen resetSilenceTimer={resetSilenceTimer} />
+                    <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "20px" }}>
+                        <CgCloseO onClick={stopListening} size={120} style={{ cursor: "pointer", color: "red" }} />
+                    </div>
                 </div>
             )}
         </div>

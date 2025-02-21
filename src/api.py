@@ -10,7 +10,7 @@ def play_text(text):
     engine = pyttsx3.init()
     TH_voice_id = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_THAI"
     engine.setProperty('voice', TH_voice_id)
-    engine.setProperty('rate', 130)
+    engine.setProperty('rate', 120)
     engine.setProperty('volume', 1)
     engine.say(text)
     engine.runAndWait()
@@ -18,7 +18,6 @@ def play_text(text):
 @app.route('/playvoice', methods=['POST'])
 def play_voice():
     try:
-        print("Headers:", request.headers)
         data = request.get_json(force=True)  # force=True for non-Content-Type JSON issues
         print("Raw data received:", request.data)
         print("Parsed data:", data)
@@ -32,6 +31,12 @@ def play_voice():
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": "Invalid JSON or request format."}), 400
+    
+
+@app.route('/searchkeyword', methods=['POST'])
+def local_server():
+    return jsonify({"generated_response": "วันศุกร์ต้องส่งแล้ว"}), 200  # ✅ ใช้ dict ที่ถูกต้อง
+    
 
 if __name__ == '__main__':
     app.run(port=4000)

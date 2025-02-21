@@ -59,7 +59,7 @@
   right: 20px; /* ระยะห่างจากด้านซ้าย */
   width: 500px; /* กำหนดความกว้าง */
   height: 800px; /* กำหนดความสูง */
-  background-color: hsl(0, 0%, 0%); /* พื้นหลังสีขาว */
+  background-color: rgb(0, 0, 0); /* พื้นหลังสีขาว */
   border: 1px solid gray; /* ขอบสีเทา */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* เงา */
   z-index: 1000; /* ทำให้แน่ใจว่าหน้าต่างนี้อยู่บนสุด */
@@ -68,4 +68,5 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  border-radius: 20px; /* ทำให้ขอบมน */
 }
