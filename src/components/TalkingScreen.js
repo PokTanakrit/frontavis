@@ -2,21 +2,84 @@ import React, { useState, useEffect, useRef } from "react";
 import "./TalkingScreen.css";
 import { HiOutlineMicrophone } from "react-icons/hi2";
 import { FaRegStopCircle, FaRegPlayCircle } from "react-icons/fa";
+//-----------------------------------นำเข้า wakeword-----------------------------------------
+import { usePorcupine } from "@picovoice/porcupine-react";
+import HelloAvisKeywordModel from "../Hello_avis";
+import ThankYouAvisKeywordModel from "../Thank-you-Avis";
+import modelParams from "../porcupine_params";
 
-function TalkingScreen({ onSpeakingChange, onClose }) {
+function TalkingScreen() {
   const [scale, setScale] = useState(1);
   const [hasSound, setHasSound] = useState(false);
   const [showStopIcon, setShowStopIcon] = useState(true);
-  const [status, setStatus] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const audioChunksRef = useRef([]);
   const mediaRecorderRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
   const silenceTimeoutRef = useRef(null);
   const maxRecordTimeoutRef = useRef(null);
-  const playTimeoutRef = useRef(null);
+  const { keywordDetection, isLoaded, init, start, stop } = usePorcupine();
+  const wsRef = useRef(null); // ประกาศ websocket
 
-  // ตั้งค่า Audio Processor เพื่อตรวจจับระดับเสียง
+  //-----------------------------------websocket ------------------------------------------
+  const connectWebSocket = () => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
+    wsRef.current = new WebSocket("ws://localhost:8000");
+    wsRef.current.onopen = () => {
+        console.log("✅ WebSocket connected");
+    };
+    wsRef.current.onclose = () => {
+        console.log("🔌 WebSocket closed. Reconnecting in 3 seconds...");
+        setTimeout(connectWebSocket, 3000);
+    };
+  };
+
+  useEffect(() => {
+      connectWebSocket();
+      return () => {
+          if (wsRef.current) {
+              wsRef.current.close();
+          }
+      };
+  }, []);
+
+
+
+  //----------------------------------wakeword---------------------------------------------
+  useEffect(() => {
+    const initEngine = async () => {
+        if (!isLoaded) {
+            await init(
+                "pGO4BAYiyE5xOsIbk5ybzw38zI1oTal4m5vqHkR+XGfEiNwpL8IGLw==",
+                [
+                    { base64: HelloAvisKeywordModel, label: "Hello Avis" },
+                    { base64: ThankYouAvisKeywordModel, label: "Thank you Avis" },
+                ],
+                { base64: modelParams }
+            );
+            start(); // เริ่มการตรวจจับ wakeword
+        }
+    };
+    initEngine();
+  }, [init, isLoaded]);
+
+  useEffect(() => {
+      if (keywordDetection) {
+          console.log("🔍 ตรวจจับได้:", keywordDetection.label);
+          if (keywordDetection.label === "Hello Avis" ) {
+              wsRef.current.send(JSON.stringify({ command: "hello_avis" }));
+              startRecording(); 
+          } else if (keywordDetection.label === "Thank you Avis" ) {
+              stop(); 
+              stopRecording(); 
+              wsRef.current.send(JSON.stringify({ command: "thank_you_avis" }));
+          }
+      }
+  }, [keywordDetection]);
+
+  
+  //-----------------------------------โค้ด process เสียง-------------------------------------
   useEffect(() => {
     const setupAudio = async () => {
       try {
@@ -39,14 +102,13 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
           const average = array.reduce((sum, value) => sum + value, 0) / array.length;
           const volume = Math.min(average / 100, 1);
 
-          // ทำงานเฉพาะเมื่อบันทึกเสียงและไม่ได้อยู่ในช่วงพูด
-          if (isRecording && !isSpeaking) {
+          if (isRecording) {
             setScale(1 + volume);
             setHasSound(volume > 0.1);
+
             if (volume > 0.1) {
               clearTimeout(silenceTimeoutRef.current);
               silenceTimeoutRef.current = setTimeout(() => {
-                // หากไม่มีเสียงเข้ามาเป็นเวลา 3 วินาที ให้หยุดบันทึกเสียง
                 stopRecording();
               }, 3000);
             }
@@ -60,9 +122,8 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
     };
 
     setupAudio();
-  }, [isRecording, isSpeaking]);
+  }, [isRecording]);
 
-  // เมื่อ showStopIcon เปลี่ยนให้เริ่มบันทึกเสียง (หาก UI เปิดอยู่)
   useEffect(() => {
     if (showStopIcon) {
       const timeoutId = setTimeout(() => {
@@ -86,11 +147,12 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
     recorder.onstop = async () => {
       if (audioChunksRef.current.length === 0) {
         console.error("ไม่มีข้อมูลเสียง");
-        setStatus("ไม่มีข้อมูลเสียง");
         return;
       }
+
       const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-      await sendAudioToAPI(audioBlob);
+      //ส่งเสียง ไปเล่นถอดข้อวามที่  API
+      sendAudioToAPI(audioBlob);
       audioChunksRef.current = [];
       setIsRecording(false);
       setScale(1);
@@ -100,125 +162,100 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
   };
 
   const startRecording = async () => {
-    // หากกำลังพูดอยู่ (isSpeaking) ไม่เริ่มบันทึกใหม่
-    if (isSpeaking) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = handleAudioProcessing(stream);
       recorder.start();
+
       setIsRecording(true);
-      setStatus("กำลังบันทึกเสียง...");
+
       maxRecordTimeoutRef.current = setTimeout(() => {
         stopRecording();
       }, 10000);
     } catch (error) {
       console.error("เกิดข้อผิดพลาด:", error);
-      setStatus("เกิดข้อผิดพลาดในการบันทึกเสียง");
     }
   };
 
   const stopRecording = () => {
-    if (!isRecording) return;
+    if (!isRecording) return; // ป้องกันการหยุดซ้ำซ้อน
+  
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       clearTimeout(maxRecordTimeoutRef.current);
       clearTimeout(silenceTimeoutRef.current);
-      setStatus("หยุดบันทึกเสียงแล้ว");
       setShowStopIcon(true);
-      setIsRecording(false);
+      setIsRecording(false); // อัปเดต state
     }
   };
+  
+  //---------------------------------ประกาศไว้ไม่ให้  error-----------------------------------------
 
   const sendTextToLocalServer = async (text) => {
-    try {
-      const response = await fetch("http://localhost:5000/call_llm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (response.ok) {
-        const result = await response.json();
-        console.log("ข้อความที่ได้จาก LLM:", result.responses);
-        const textToSpeak = result.responses;
-        // เรียก playVoice แล้วรอจน API แจ้งว่าพูดจบ
-        await playVoice(textToSpeak);
-        setStatus("ข้อความถูกส่งไปยังเซิร์ฟเวอร์ท้องถิ่นแล้ว");
-      } else {
-        console.error("Error sending text:", response.statusText);
-        setStatus("เกิดข้อผิดพลาดในการส่งข้อความไปที่เซิร์ฟเวอร์ท้องถิ่น");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setStatus("เกิดข้อผิดพลาดในการส่งข้อความ: " + error.message);
-    }
+    // try {
+    //   const response = await fetch("http://127.0.0.1:4000/searchkeyword", { 
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ text }),
+    //   });
+
+    //   if (response.ok) {
+    //     const result = await response.json();
+    //     console.log("Text sent to server:", result);
+    //     const textToSpeak = result.generated_response;
+    //     await playVoice(textToSpeak);
+    //   } else {
+    //     console.error("Error sending text:", response.statusText);
+    //   }
+    // } catch (error) {
+    //   console.error("Error:", error);
+    // }
   };
 
   const sendAudioToAPI = async (audioBlob) => {
-    try {
-      const formData = new FormData();
-      formData.append("audioData", audioBlob, "audio.webm");
-      const response = await fetch("https://api.gowajee.ai/v1/speech-to-text/pulse/transcribe", {
-        method: "POST",
-        headers: { "x-api-key": "gwj_live_68e8664be460418ab4eee60e7eb60ca0_hbooe" },
-        body: formData,
-      });
-      if (response.ok) {
-        const result = await response.json();
-        const transcripts = result.output.results.map((item) => item.transcript);
-        const fullText = transcripts.join(" ");
-        console.log("ข้อความที่ถอดจากเสียง:", fullText);
-        // ตรวจสอบก่อนส่งข้อมูลถ้า UI ยังเปิดอยู่ (ถ้าต้องการ)
-        await sendTextToLocalServer(fullText);
-      } else {
-        console.error("Error:", response.statusText);
-        setStatus(`เกิดข้อผิดพลาดในการส่งเสียง: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error("Error processing audio:", error);
-      setStatus("เกิดข้อผิดพลาดในการประมวลผลเสียง");
-    }
+    // try {
+    //   const formData = new FormData();
+    //   formData.append("audioData", audioBlob, "audio.webm");
+
+    //   const response = await fetch("https://api.gowajee.ai/v1/speech-to-text/pulse/transcribe", {
+    //     method: "POST",
+    //     headers: { "x-api-key": "gwj_live_68e8664be460418ab4eee60e7eb60ca0_hbooe" },
+    //     body: formData,
+    //   });
+
+    //   if (response.ok) {
+    //     const result = await response.json();
+    //     const transcripts = result.output.results.map((item) => item.transcript);
+    //     const fullText = transcripts.join(" ");
+    //     console.log("ข้อความที่ถอดจากเสียง:", fullText);
+    //     await sendTextToLocalServer(fullText);
+    //   } else {
+    //     console.error("Error:", response.statusText);
+    //   }
+    // } catch (error) {
+    //   console.error("Error processing audio:", error);
+    // }
   };
 
   const playVoice = async (text) => {
-    try {
-      // ก่อนเริ่มเล่นเสียง: หยุดการบันทึกเสียงและตั้ง flag isSpeaking เป็น true
-      stopRecording();
-      setIsSpeaking(true);
-      if (onSpeakingChange) onSpeakingChange(true);
-      clearTimeout(playTimeoutRef.current);
+    // try {
+    //   const response = await fetch("http://localhost:4000/playvoice", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ text }),
+    //   });
 
-      const response = await fetch("http://localhost:4000/playvoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-      const result = await response.json();
-      console.log("ผลลัพธ์จาก playvoice API:", result);
-      // สมมุติว่า response นี้หมายถึงเสียงพูดจบแล้ว
-      setIsSpeaking(false);
-      if (onSpeakingChange) onSpeakingChange(false);
-
-      // เริ่มนับ timeoutหลังเสียงพูดจบ (ตัวอย่าง 20 วินาที)
-      playTimeoutRef.current = setTimeout(() => {
-        stopRecording();
-        if (onClose) onClose();
-      }, 20000);
-
-      // เริ่มฟังเสียงใหม่หลังจากเสียงจบ
-      startRecording();
-      setShowStopIcon(false);
-    } catch (error) {
-      console.error("Error playing voice:", error);
-      setIsSpeaking(false);
-      if (onSpeakingChange) onSpeakingChange(false);
-    }
+    //   if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    //   setShowStopIcon(false);
+    //   startRecording();
+    // } catch (error) {
+    //   console.error("Error playing voice:", error);
+    // }
   };
 
-  const backgroundColor = isRecording ? (hasSound ? "white" : "gray") : "gray";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
       <div
         className="circle"
         style={{
@@ -228,15 +265,19 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
       >
         <HiOutlineMicrophone size={120} color="black" />
       </div>
+
       {/* Recording / Stop icons */}
       <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "355px" }}>
         {showStopIcon ? (
-          <FaRegStopCircle size={120} style={{ cursor: "pointer", color: "gray" }} onClick={stopRecording} />
+          <FaRegStopCircle size={120} style={{ cursor: "pointer", color: "gray" }} />
         ) : (
-          <FaRegPlayCircle onClick={startRecording} size={120} style={{ cursor: "pointer", color: "green" }} />
+          <FaRegPlayCircle 
+            onClick={startRecording} 
+            size={120} 
+            style={{ cursor: "pointer", color: "green" }} 
+          />
         )}
       </div>
-      <div>{status}</div>
     </div>
   );
 }
