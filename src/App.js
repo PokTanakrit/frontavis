@@ -4,7 +4,7 @@ import SliderPage from "./components/Newsfeed";
 import { CgCloseO } from "react-icons/cg";
 import "./App.css";
 
-export default function VoiceWidget() {
+export default function APP() {
     const [showTalkingScreen, setShowTalkingScreen] = useState(false);
 
     return (
@@ -19,8 +19,7 @@ export default function VoiceWidget() {
             </div>
             {showTalkingScreen && (
                 <div className="small-talking-screen">
-                    <TalkingScreen 
-                    />
+                    <TalkingScreen onClose={() => setShowTalkingScreen(false)} />  
                     <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "20px" }}>
                         <CgCloseO onClick={() => setShowTalkingScreen(false)} size={120} style={{ cursor: "pointer", color: "red" }} />
                     </div>

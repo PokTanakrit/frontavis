@@ -29,6 +29,10 @@
   height: 20px !important;
 }
 
+.slick-dots li button:before {
+  display: none !important;
+}
+
 .slick-dots li button {
   width: 20px;
   height: 20px;
