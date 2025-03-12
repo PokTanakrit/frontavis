@@ -6,7 +6,8 @@ const images = [
   "/images/image1.jpg",
   "/images/image2.jpg",
   "/images/image3.jpg",
-  "/images/image4.jpg"
+  "http://cs.kmutnb.ac.th/IMG_SHOW/img/temp/405/0.jpg",
+  "http://cs.kmutnb.ac.th/IMG_SHOW/img/temp/392/0.jpg"
 ];
 
 // คอมโพเนนต์ลูกศรซ้าย (Prev)

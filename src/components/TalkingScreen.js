@@ -8,7 +8,7 @@ import HelloAvisKeywordModel from "../Hello_avis";
 import ThankYouAvisKeywordModel from "../Thank-you-Avis";
 import modelParams from "../porcupine_params";
 
-function TalkingScreen({ onSpeakingChange, onClose }) {
+function TalkingScreen({  keywordDetection, onClose }) {
   const [scale, setScale] = useState(1);
   const [hasSound, setHasSound] = useState(false);
   const [showStopIcon, setShowStopIcon] = useState(true);
@@ -17,62 +17,16 @@ function TalkingScreen({ onSpeakingChange, onClose }) {
   const [isRecording, setIsRecording] = useState(false);
   const silenceTimeoutRef = useRef(null);
   const maxRecordTimeoutRef = useRef(null);
-  const { keywordDetection, isLoaded, init, start, stop } = usePorcupine();
+  const { isLoaded, init, start, stop } = usePorcupine();
   const wsRef = useRef(null); // ประกาศ websocket
   const [isSpeaking, setIsSpeaking] = useState(false);
   const playTimeoutRef = useRef(null);
   const [isListening, setIsListening] = useState(true);  // เพิ่ม state isListening
-  const HelloavisRef = useRef(false); // ใช้ useRef แทน useState
+  const HelloavisRef = useRef(false); // ใช้ useRef แทน useState 
   const [isPaused, setIsPaused] = useState(false);  // ตัวแปรควบคุมการปิดชั่วคราว
   const [isPlayingResponse, setIsPlayingResponse] = useState(true);
   const lastKeywordRef = useRef(null); // ใช้ ref เก็บค่า keyword ล่าสุด
-
-
-
-
-// ----------------------------------- WebSocket ------------------------------------------
-const connectWebSocket = (url = "ws://localhost:8000") => {
-  if (isPaused || (wsRef.current && wsRef.current.readyState === WebSocket.OPEN)) return;
-
-  console.log("🔌 กำลังเชื่อมต่อ WebSocket...");
-  wsRef.current = new WebSocket(url);
-
-  wsRef.current.onopen = () => {
-    console.log("✅ WebSocket connected, re-enabling wake word...");
-    // setIsListening(true);  // ✅ เปิด wake word ใหม่
-    // start();
-};
-  
-  wsRef.current.onclose = () => {
-      console.log("🔄 ปิด WebSocket แล้ว.");
-  };
-
-  wsRef.current.onerror = (error) => console.error("⚠️ WebSocket error:", error);
-};
-
-// 📤 ส่งข้อความผ่าน WebSocket อย่างปลอดภัย
-const safeSendMessage = (message) => {
-  if (!wsRef.current) {
-      console.warn("🚫 WebSocket ยังไม่ได้ถูกสร้าง");
-      return;
-  }
-
-  if (wsRef.current.readyState === WebSocket.OPEN) {
-      console.log("📨 กำลังส่งข้อความผ่าน WebSocket:", message);
-      wsRef.current.send(JSON.stringify(message));
-  } else if (wsRef.current.readyState === WebSocket.CONNECTING) {
-      console.warn("⏳ WebSocket ยังเชื่อมต่อไม่เสร็จ รอ 500ms แล้วลองใหม่...");
-      setTimeout(() => safeSendMessage(message), 500);
-  } else {
-      console.error("❌ WebSocket ไม่ได้อยู่ในสถานะที่สามารถส่งข้อความได้:", wsRef.current.readyState);
-  }
-};
-
-useEffect(() => {
-  connectWebSocket(); // ✅ เชื่อมต่อ WebSocket ตอนเริ่มต้น
-  return () => wsRef.current?.close(); // ❌ ปิด WebSocket เมื่อ component unmount
-}, []);
-
+  const [isProcessing, setIsProcessing] = useState(false);
 
 
 useEffect(() => {
@@ -104,13 +58,36 @@ useEffect(() => {
   console.log(lastKeywordRef.current)
 
   if (lastKeywordRef.current === "Hello Avis") {
-    safeSendMessage({ command: "hello_avis" });
+    const text = "สวัสดีครับ อยากทราบข้อมูลอะไรครับ"
+    const speechSynthesisUtterance = new SpeechSynthesisUtterance(text);
+    
+    // ปรับค่าต่างๆ
+    speechSynthesisUtterance.rate = 0.8;    // ความเร็ว
+    speechSynthesisUtterance.volume = 0.9;  // ระดับเสียง
+    speechSynthesisUtterance.pitch = 1.2;   // โทนเสียง
+
+    // เลือกเสียงที่รองรับภาษาไทย
+    const voices = speechSynthesis.getVoices();
+    speechSynthesisUtterance.voice = voices.find(voice => voice.name.includes("Google ไทย"));
+
+    speechSynthesis.speak(speechSynthesisUtterance);
     HelloavisRef.current = true;
     setIsPaused(true);
-    wsRef.current?.close();
-    setTimeout(startRecording, 3500);
+    setTimeout(startRecording, 2500);
   } else if (lastKeywordRef.current === "Thank you Avis") {
-    safeSendMessage({ command: "thank_you_avis" });
+    const text = "ขอบคุณที่ใช้บริการ Avis ครับ"
+    const speechSynthesisUtterance = new SpeechSynthesisUtterance(text);
+    
+    // ปรับค่าต่างๆ
+    speechSynthesisUtterance.rate = 0.8;    // ความเร็ว
+    speechSynthesisUtterance.volume = 0.9;  // ระดับเสียง
+    speechSynthesisUtterance.pitch = 1.2;   // โทนเสียง
+
+    // เลือกเสียงที่รองรับภาษาไทย
+    const voices = speechSynthesis.getVoices();
+    speechSynthesisUtterance.voice = voices.find(voice => voice.name.includes("Google ไทย"));
+
+    speechSynthesis.speak(speechSynthesisUtterance);
     console.log("👋 Goodbye!");
     lastKeywordRef.current = null;
     wsRef.current?.close();
@@ -123,49 +100,43 @@ useEffect(() => {
 }, [keywordDetection, isListening]);
 
 
-const handleAudioProcessing = (stream) => {
-  if (!HelloavisRef.current) return; // ❌ ถ้าไม่ได้ยิน wake word ไม่ทำงาน
+const startRecording = async () => {
+  if (mediaRecorderRef.current?.state === "recording" || !HelloavisRef.current) return;
+  
+  console.log("🎙️ เริ่มบันทึกเสียง...");
+  setShowStopIcon(false);
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    audioChunksRef.current = []; // รีเซ็ตข้อมูลเก่า
 
-  console.log("🎙️ ตั้งค่าการบันทึกเสียง...");
-  const recorder = new MediaRecorder(stream);
-
-  recorder.ondataavailable = (e) => {
-      if (e.data.size > 0 && HelloavisRef.current) {
-          console.log("🔹 บันทึกเสียง chunk...");
-          audioChunksRef.current.push(e.data);
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        console.log("🔹 บันทึกเสียง chunk...");
+        audioChunksRef.current.push(e.data);
       }
-  };
+    };
 
-  recorder.onstop = async () => {
+    recorder.onstop = async () => {
       console.log("🛑 หยุดบันทึกเสียง");
       if (audioChunksRef.current.length === 0) return;
 
-      console.log("🎵 กำลังสร้างไฟล์เสียง...");
       const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-
-      console.log("📨 ส่งเสียงไป API...");
+      console.log("🎵 กำลังสร้างไฟล์เสียง...");
+      setIsProcessing(true);  // เปิด Loader
       sendAudioToAPI(audioBlob);
+    };
 
-      // 🔄 **รีเซ็ตค่าทั้งหมด**
-      audioChunksRef.current = [];
-  };
-
-  return recorder;
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+    setIsRecording(true);
+    maxRecordTimeoutRef.current = setTimeout(() => recorder.stop(), 6500);
+  } catch (error) {
+    console.error("❌ ไม่สามารถเริ่มบันทึกเสียงได้:", error);
+  }
 };
 
-// 🎤 เริ่มบันทึกเสียง
-const startRecording = async () => {
-  if (mediaRecorderRef.current?.state === "recording") return;
-  setShowStopIcon(false);
-  console.log("🎙️ เริ่มบันทึกเสียง...");
-  
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  mediaRecorderRef.current = handleAudioProcessing(stream);
-  mediaRecorderRef.current.start();
-  setIsRecording(true);
-  maxRecordTimeoutRef.current = setTimeout(stopRecording, 10000);
-};
 
 // 🛑 หยุดบันทึกเสียง
 const stopRecording = () => {
@@ -180,12 +151,18 @@ const stopRecording = () => {
 const sendAudioToAPI = async (audioBlob) => {
   try {
       console.log("📨 กำลังส่งเสียงไป API...");
+      // 🛑 ตรวจสอบว่าไฟล์เสียงมีข้อมูลหรือไม่
+      if (audioBlob.size === 0) {
+        console.warn("⚠️ ไฟล์เสียงว่างเปล่า ไม่ส่งไป API");
+        await playVoice("ขออภัยครับ กรุณาพูดใหม่อีกครั้งครับ");
+        return;
+      }
       const formData = new FormData();
-      formData.append("audioData", audioBlob, "audio.webm");
+      formData.append("audioData", audioBlob, "audio.wav");
 
-      const response = await fetch("https://api.gowajee.ai/v1/speech-to-text/pulse/transcribe", {
+      const response = await fetch("https://api.gowajee.ai/v1/speech-to-text/cosmos/transcribe", {
           method: "POST",
-          headers: { "x-api-key": "gwj_live_68e8664be460418ab4eee60e7eb60ca0_hbooe" },
+          headers: { "x-api-key": "gwj_live_407fb85990e246ce9462a3b71357a2c1_bo23x" },
           body: formData,
       });
 
@@ -194,6 +171,9 @@ const sendAudioToAPI = async (audioBlob) => {
           const text = result.output.results.map((item) => item.transcript).join(" ");
           console.log("📝 ข้อความที่ถอดเสียงได้:", text);
           sendTextToLocalServer(text);
+      }else{
+        const text = " "
+        sendTextToLocalServer(text);
       }
   } catch (error) {
       console.error("❌ Error processing audio:", error);
@@ -229,9 +209,11 @@ const playVoice = async (text) => {
   try {
     if (!HelloavisRef.current) return;
 
-    stopRecording();
-    setIsSpeaking(true);
+    // stopRecording();
+    // setIsSpeaking(true);
     // setIsListening(false);
+    setIsProcessing(false);  // เปิด Loader
+    setShowStopIcon(false);
     stop();
     setIsPaused(true);
     lastKeywordRef.current = null; // 🔄 เคลียร์ค่า keyword ที่เคยตรวจจับก่อนหน้านี้
@@ -253,8 +235,6 @@ const playVoice = async (text) => {
     speechSynthesis.speak(speechSynthesisUtterance);
 
     speechSynthesisUtterance.onend = () => {
-      console.log("🔄 เชื่อม websocket ใหม่...");
-      connectWebSocket();
       console.log("🔄 เปิด wake word ใหม่...");
       setIsPlayingResponse(false)
       setIsPaused(false);
@@ -301,14 +281,14 @@ const playVoice = async (text) => {
   
             if (isRecording) {
               setScale(1 + volume);
-              setHasSound(volume > 0.1);
+              setHasSound(volume > 0.18);
   
-              if (volume > 0.1) {
-                clearTimeout(silenceTimeoutRef.current);
-                silenceTimeoutRef.current = setTimeout(() => {
-                  stopRecording();
-                }, 3000);
-              }
+              // if (volume > 0.18) {
+              //   clearTimeout(silenceTimeoutRef.current);
+              //   silenceTimeoutRef.current = setTimeout(() => {
+              //     stopRecording();
+              //   }, 3000);
+              // }
             }
           };
   
@@ -324,6 +304,9 @@ const playVoice = async (text) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+    {isProcessing ? (
+      <div className="loader"></div>  // แสดง Loader ขณะประมวลผล
+    ) : (
       <div
         className="circle"
         style={{
@@ -333,20 +316,22 @@ const playVoice = async (text) => {
       >
         <HiOutlineMicrophone size={120} color="black" />
       </div>
+    )}
 
-      {/* Recording / Stop icons */}
-      <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "355px" }}>
-        {showStopIcon ? (
-          <FaRegStopCircle size={120} style={{ cursor: "pointer", color: "gray" }} />
-        ) : (
-          <FaRegPlayCircle 
-            onClick={startRecording} 
-            size={120} 
-            style={{ cursor: "pointer", color: "green" }} 
-          />
-        )}
-      </div>
+    {/* Recording / Stop icons */}
+    <div style={{ position: "absolute", bottom: "50px", display: "flex", justifyContent: "flex-end", width: "100%", paddingRight: "355px" }}>
+      {isProcessing ? (
+        <FaRegStopCircle size={120} style={{ cursor: "pointer", color: "gray" }} />
+      ) : (
+        <FaRegPlayCircle 
+          onClick={startRecording} 
+          size={120} 
+          style={{ cursor: "pointer", color: "green" }} 
+        />
+      )}
     </div>
+  </div>
+
   );
 }
 export default TalkingScreen;
