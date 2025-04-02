@@ -21,7 +21,7 @@ export default function APP() {
         }
     }, [isLoaded, init, start]);
 
-    // ✅ ตรวจจับ wake word และเปิด/ปิด TalkingScreen อัตโนมัติ
+
     useEffect(() => {
         if (!keywordDetection) return;
 
