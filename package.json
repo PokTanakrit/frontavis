@@ -2,6 +2,7 @@
   "name": "frontend_avis",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:3006",
   "dependencies": {
     "@iconscout/react-unicons": "^2.2.4",
     "@picovoice/porcupine-react": "^3.0.3",
